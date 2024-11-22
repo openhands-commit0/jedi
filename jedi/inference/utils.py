@@ -54,6 +54,20 @@ def safe_property(func):
     """
     return property(reraise_uncaught(func))
 
+def to_list(func):
+    """
+    Decorator that ensures that a function returns a list.
+    """
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if isinstance(result, (list, tuple)):
+            return list(result)
+        elif result is None:
+            return []
+        else:
+            return [result]
+    return wrapper
+
 class PushBackIterator:
 
     def __init__(self, iterator):

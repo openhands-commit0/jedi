@@ -180,23 +180,6 @@ def cut_value_at_position(leaf, position):
             return ''
     return leaf.value[:position[1] - leaf.column]
 
-def expr_is_dotted(node):
-    """
-    Checks if a path looks like `name` or `name.foo.bar` and not `name()`.
-    """
-    if node.type == 'name':
-        return True
-    if node.type == 'atom' and node.children[0].value == '(':
-        return False
-    if node.type == 'atom_expr':
-        if node.children[-1].type == 'trailer' and node.children[-1].children[0].value == '(':
-            return False
-        return True
-    if node.type == 'power':
-        if node.children[-1].type == 'trailer' and node.children[-1].children[0].value == '(':
-            return False
-        return True
-    return False
 def _get_parent_scope_cache(func):
     """
     This is a cache to avoid multiple lookups of parent scopes.
@@ -228,6 +211,24 @@ def _function_is_x_method(name, other_name=None):
                 return True
         return False
     return wrapper
+
+def expr_is_dotted(node):
+    """
+    Checks if a path looks like `name` or `name.foo.bar` and not `name()`.
+    """
+    if node.type == 'name':
+        return True
+    if node.type == 'atom' and node.children[0].value == '(':
+        return False
+    if node.type == 'atom_expr':
+        if node.children[-1].type == 'trailer' and node.children[-1].children[0].value == '(':
+            return False
+        return True
+    if node.type == 'power':
+        if node.children[-1].type == 'trailer' and node.children[-1].children[0].value == '(':
+            return False
+        return True
+    return False
 
 function_is_staticmethod = _function_is_x_method('staticmethod')
 function_is_classmethod = _function_is_x_method('classmethod')

@@ -29,5 +29,13 @@ class LazyTreeValue(AbstractLazyValue):
         self.context = context
         self._predefined_names = dict(context.predefined_names)
 
+def get_merged_lazy_value(lazy_values):
+    """
+    Returns a merged lazy value, which means that the values will be merged.
+    """
+    if len(lazy_values) == 1:
+        return lazy_values[0]
+    return MergedLazyValues(lazy_values)
+
 class MergedLazyValues(AbstractLazyValue):
     """data is a list of lazy values."""

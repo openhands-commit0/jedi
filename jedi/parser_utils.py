@@ -9,6 +9,42 @@ from parso import split_lines
 _EXECUTE_NODES = {'funcdef', 'classdef', 'import_from', 'import_name', 'test', 'or_test', 'and_test', 'not_test', 'comparison', 'expr', 'xor_expr', 'and_expr', 'shift_expr', 'arith_expr', 'atom_expr', 'term', 'factor', 'power', 'atom'}
 _FLOW_KEYWORDS = ('try', 'except', 'finally', 'else', 'if', 'elif', 'with', 'for', 'while')
 
+def _get_parent_scope_cache(func):
+    """
+    This is a cache to avoid multiple lookups of parent scopes.
+    """
+    cache = WeakKeyDictionary()
+
+    def wrapper(node, *args, **kwargs):
+        try:
+            return cache[node]
+        except KeyError:
+            result = cache[node] = func(node, *args, **kwargs)
+            return result
+
+    return wrapper
+
+def _function_is_x_method(name, other_name=None):
+    def wrapper(func):
+        decorators = func.get_decorators()
+        if not decorators:
+            return False
+
+        for decorator in decorators:
+            dotted_name = decorator.children[1]
+            if not isinstance(dotted_name, tree.Name):
+                continue
+
+            value = dotted_name.value
+            if value == name or other_name is not None and value == other_name:
+                return True
+        return False
+    return wrapper
+
+function_is_staticmethod = _function_is_x_method('staticmethod')
+function_is_classmethod = _function_is_x_method('classmethod')
+function_is_property = _function_is_x_method('property', 'cached_property')
+
 def get_executable_nodes(node, last_added=False):
     """
     For static analysis. Returns a generator of nodes that are executed in
@@ -229,7 +265,3 @@ def expr_is_dotted(node):
             return False
         return True
     return False
-
-function_is_staticmethod = _function_is_x_method('staticmethod')
-function_is_classmethod = _function_is_x_method('classmethod')
-function_is_property = _function_is_x_method('property', 'cached_property')

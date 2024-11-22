@@ -20,6 +20,21 @@ def is_big_annoying_library(value):
     match = any(x in parts for x in ['numpy', 'scipy', 'tensorflow', 'matplotlib', 'pandas'])
     return match
 
+def reraise_getitem_errors(func):
+    """
+    Re-throw any SimpleGetItemNotFound errors as KeyError or IndexError.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except SimpleGetItemNotFound as e:
+            if isinstance(e.args[1], str):
+                raise KeyError(e.args[1])
+            else:
+                raise IndexError(e.args[1])
+    return wrapper
+
 def deep_ast_copy(obj):
     """
     Much, much faster than copy.deepcopy, but just for parser tree nodes.

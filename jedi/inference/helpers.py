@@ -10,7 +10,42 @@ def deep_ast_copy(obj):
     """
     Much, much faster than copy.deepcopy, but just for parser tree nodes.
     """
-    pass
+    if isinstance(obj, tree.Leaf):
+        obj_copy = copy.copy(obj)
+        obj_copy.parent = None
+        return obj_copy
+
+    if isinstance(obj, tree.BaseNode):
+        new_children = []
+        for child in obj.children:
+            if isinstance(child, (tree.Leaf, tree.BaseNode)):
+                new_children.append(deep_ast_copy(child))
+            else:
+                new_children.append(child)
+
+        obj_copy = copy.copy(obj)
+        obj_copy.children = new_children
+        for child in new_children:
+            if isinstance(child, (tree.Leaf, tree.BaseNode)):
+                child.parent = obj_copy
+        obj_copy.parent = None
+        return obj_copy
+
+    return obj
+
+def is_string(value):
+    """
+    Checks if a value is a string.
+    """
+    return isinstance(value, str)
+
+def get_str_or_none(value):
+    """
+    Gets a string from a value or returns None if it's not a string.
+    """
+    if is_string(value):
+        return value
+    return None
 
 def infer_call_of_leaf(context, leaf, cut_own_trailer=False):
     """
@@ -31,7 +66,16 @@ def infer_call_of_leaf(context, leaf, cut_own_trailer=False):
       - infer the type of ``bar`` to be able to jump to the definition of foo
     The option ``cut_own_trailer`` must be set to true for the second purpose.
     """
-    pass
+    node = leaf
+    while node.parent is not None:
+        node = node.parent
+        if node.type in ('trailer', 'power'):
+            if node.type == 'trailer' and cut_own_trailer and node.children[-1] is leaf:
+                continue
+            node = deep_ast_copy(node)
+            context = context.eval_node(node)
+            return context
+    return context
 
 class SimpleGetItemNotFound(Exception):
     pass

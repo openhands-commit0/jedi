@@ -76,6 +76,15 @@ def get_str_or_none(value):
         return value
     return None
 
+def values_from_qualified_names(inference_state, *names):
+    """
+    Generates values from qualified names like 'collections.defaultdict'.
+    """
+    module_value = inference_state.builtins_module
+    for name in names:
+        module_value = module_value.py__getattribute__(name)[0]
+    return module_value
+
 def infer_call_of_leaf(context, leaf, cut_own_trailer=False):
     """
     Creates a "call" node that consist of all ``trailer`` and ``power``

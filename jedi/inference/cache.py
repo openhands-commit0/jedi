@@ -8,6 +8,30 @@ from jedi import debug
 _NO_DEFAULT = object()
 _RECURSION_SENTINEL = object()
 
+def inference_state_method_cache():
+    """
+    This is a special memoizer that caches a method call with the inference_state as
+    a parameter.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(inference_state, *args, **kwargs):
+            key = (func, args, frozenset(kwargs.items()))
+            cache = inference_state.memoize_cache
+
+            try:
+                if key in cache:
+                    return cache[key]
+
+                result = cache[key] = func(inference_state, *args, **kwargs)
+                return result
+            except TypeError:
+                debug.warning('Cache key is not hashable: %s %s %s', func, args, kwargs)
+                return func(inference_state, *args, **kwargs)
+
+        return wrapper
+    return decorator
+
 def inference_state_as_method_param_cache():
     """
     This is a special memoizer that caches a method call with the inference_state as

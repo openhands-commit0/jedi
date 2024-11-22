@@ -6,8 +6,37 @@ from weakref import WeakKeyDictionary
 from parso.python import tree
 from parso.cache import parser_cache
 from parso import split_lines
+
 _EXECUTE_NODES = {'funcdef', 'classdef', 'import_from', 'import_name', 'test', 'or_test', 'and_test', 'not_test', 'comparison', 'expr', 'xor_expr', 'and_expr', 'shift_expr', 'arith_expr', 'atom_expr', 'term', 'factor', 'power', 'atom'}
 _FLOW_KEYWORDS = ('try', 'except', 'finally', 'else', 'if', 'elif', 'with', 'for', 'while')
+
+def is_scope(node):
+    """
+    Returns True if the node is a scope (function, class, etc).
+    """
+    return node.type in ('classdef', 'funcdef', 'file_input')
+
+def get_flow_branch_keyword(flow_node, node):
+    """
+    Returns the keyword associated with a flow branch.
+    """
+    if flow_node.type == 'if_stmt':
+        for i, child in enumerate(flow_node.children):
+            if child == 'else' and node.start_pos > child.start_pos:
+                return 'else'
+            elif child.type == 'suite' and node.start_pos >= child.start_pos:
+                return flow_node.children[i - 1].value
+
+    elif flow_node.type == 'try_stmt':
+        for i, child in enumerate(flow_node.children):
+            if child == 'else' and node.start_pos > child.start_pos:
+                return 'else'
+            elif child == 'finally' and node.start_pos > child.start_pos:
+                return 'finally'
+            elif child.type == 'except_clause' and node.start_pos >= flow_node.children[i + 1].start_pos:
+                return 'except'
+
+    return None
 
 def _get_parent_scope_cache(func):
     """
@@ -215,38 +244,6 @@ def cut_value_at_position(leaf, position):
         if leaf.line == position[0] and position[1] < leaf.column + len(quote):
             return ''
     return leaf.value[:position[1] - leaf.column]
-
-def _get_parent_scope_cache(func):
-    """
-    This is a cache to avoid multiple lookups of parent scopes.
-    """
-    cache = WeakKeyDictionary()
-
-    def wrapper(node, *args, **kwargs):
-        try:
-            return cache[node]
-        except KeyError:
-            result = cache[node] = func(node, *args, **kwargs)
-            return result
-
-    return wrapper
-
-def _function_is_x_method(name, other_name=None):
-    def wrapper(func):
-        decorators = func.get_decorators()
-        if not decorators:
-            return False
-
-        for decorator in decorators:
-            dotted_name = decorator.children[1]
-            if not isinstance(dotted_name, tree.Name):
-                continue
-
-            value = dotted_name.value
-            if value == name or other_name is not None and value == other_name:
-                return True
-        return False
-    return wrapper
 
 def expr_is_dotted(node):
     """

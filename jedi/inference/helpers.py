@@ -6,6 +6,20 @@ from itertools import chain
 from contextlib import contextmanager
 from parso.python import tree
 
+def is_big_annoying_library(value):
+    """
+    Checks if a value is part of a library that is known to cause issues.
+    """
+    string = value.get_root_context().py__file__()
+    if string is None:
+        return False
+
+    # These libraries cause problems, because they have really strange ways of
+    # using modules. They are also very big (numpy) and therefore really slow.
+    parts = string.split(os.path.sep)
+    match = any(x in parts for x in ['numpy', 'scipy', 'tensorflow', 'matplotlib', 'pandas'])
+    return match
+
 def deep_ast_copy(obj):
     """
     Much, much faster than copy.deepcopy, but just for parser tree nodes.

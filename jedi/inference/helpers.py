@@ -76,6 +76,14 @@ def get_str_or_none(value):
         return value
     return None
 
+def get_int_or_none(value):
+    """
+    Gets an int from a value or returns None if it's not an int.
+    """
+    if isinstance(value, int):
+        return value
+    return None
+
 def values_from_qualified_names(inference_state, *names):
     """
     Generates values from qualified names like 'collections.defaultdict'.

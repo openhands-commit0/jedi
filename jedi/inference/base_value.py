@@ -27,7 +27,9 @@ class HelperValueMixin:
         """
         :param position: Position of the last statement -> tuple of line, column
         """
-        pass
+        if name_context is None:
+            name_context = self
+        return self._wrapped_value.py__getattribute__(name_or_str, name_context, position, analysis_errors)
 
 class Value(HelperValueMixin):
     """
@@ -46,13 +48,13 @@ class Value(HelperValueMixin):
         Since Wrapper is a super class for classes, functions and modules,
         the return value will always be true.
         """
-        pass
+        return True
 
     def py__getattribute__alternatives(self, name_or_str):
         """
         For now a way to add values in cases like __getattr__.
         """
-        pass
+        return NO_VALUES
 
     def infer_type_vars(self, value_set):
         """
@@ -81,14 +83,35 @@ class Value(HelperValueMixin):
             above example this would first be the representation of the list
             `[1]` and then, when recursing, just of `1`.
         """
-        pass
+        return {}
+
+def iterator_to_value_set(iterator):
+    """
+    Converts a generator of values to a ValueSet.
+    """
+    return ValueSet(iterator)
 
 def iterate_values(values, contextualized_node=None, is_async=False):
     """
     Calls `iterate`, on all values but ignores the ordering and just returns
     all values that the iterate functions yield.
     """
-    pass
+    if not values:
+        return NO_VALUES
+
+    result = set()
+    for value in values:
+        if is_async:
+            if hasattr(value, 'py__aiter__'):
+                result |= set(value.py__aiter__())
+            else:
+                debug.warning('No __aiter__ on %s', value)
+        else:
+            if hasattr(value, 'iterate'):
+                result |= set(value.iterate(contextualized_node))
+            else:
+                debug.warning('No iterate on %s', value)
+    return ValueSet(result)
 
 class _ValueWrapperBase(HelperValueMixin):
 
@@ -139,7 +162,7 @@ class ValueSet:
         """
         Used to work with an iterable of set.
         """
-        pass
+        return cls(reduce(add, sets, frozenset()))
 
     def __or__(self, other):
         return self._from_frozen_set(self._set | other._set)

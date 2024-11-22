@@ -10,7 +10,7 @@ del _sep
 
 def unite(iterable):
     """Turns a two dimensional array into a one dimensional."""
-    pass
+    return set(x for objects in iterable for x in objects)
 
 class UncaughtAttributeError(Exception):
     """
@@ -40,7 +40,19 @@ def reraise_uncaught(func):
     `AttributeError` to `UncaughtAttributeError` to avoid unexpected catch.
     This helps us noticing bugs earlier and facilitates debugging.
     """
-    pass
+    @functools.wraps(func)
+    def wrapper(*args, **kwds):
+        try:
+            return func(*args, **kwds)
+        except AttributeError as e:
+            raise UncaughtAttributeError(e) from e
+    return wrapper
+
+def safe_property(func):
+    """
+    Property decorator that wraps the getter in a reraise_uncaught decorator.
+    """
+    return property(reraise_uncaught(func))
 
 class PushBackIterator:
 

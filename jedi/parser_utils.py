@@ -10,6 +10,14 @@ from parso import split_lines
 _EXECUTE_NODES = {'funcdef', 'classdef', 'import_from', 'import_name', 'test', 'or_test', 'and_test', 'not_test', 'comparison', 'expr', 'xor_expr', 'and_expr', 'shift_expr', 'arith_expr', 'atom_expr', 'term', 'factor', 'power', 'atom'}
 _FLOW_KEYWORDS = ('try', 'except', 'finally', 'else', 'if', 'elif', 'with', 'for', 'while')
 
+def find_statement_documentation(node):
+    """
+    Finds the statement's documentation node by looking at the parso node.
+    """
+    if node.type == 'expr_stmt':
+        return node.get_doc_node()
+    return None
+
 def is_scope(node):
     """
     Returns True if the node is a scope (function, class, etc).

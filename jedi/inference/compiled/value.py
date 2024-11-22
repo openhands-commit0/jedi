@@ -107,11 +107,36 @@ class CompiledValueFilter(AbstractFilter):
         """
         To remove quite a few access calls we introduced the callback here.
         """
-        pass
+        has_attribute, is_descriptor = allowed_getattr_callback(name)
+        if not has_attribute and in_dir_callback(name):
+            return iter([])
+
+        if check_has_attribute and not has_attribute:
+            return iter([])
+
+        return iter([CompiledName(
+            self._inference_state,
+            self.compiled_value,
+            name,
+            is_descriptor
+        )])
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.compiled_value)
 docstr_defaults = {'floating point number': 'float', 'character': 'str', 'integer': 'int', 'dictionary': 'dict', 'string': 'str'}
+
+@inference_state_function_cache()
+def create_from_access_path(inference_state, access_path):
+    """
+    Creates a compiled value from an access path.
+    """
+    value = None
+    for name, access in access_path.accesses:
+        if value is None:
+            value = CompiledValue(inference_state, access)
+        else:
+            value = value.py__getattribute__(name)[0]
+    return value
 
 def _parse_function_doc(doc):
     """
@@ -121,8 +146,53 @@ def _parse_function_doc(doc):
     TODO docstrings like utime(path, (atime, mtime)) and a(b [, b]) -> None
     TODO docstrings like 'tuple of integers'
     """
-    pass
+    if doc is None:
+        return None, None
+
+    doc = doc.strip()
+    if not doc:
+        return None, None
+
+    # Get rid of multiple spaces
+    doc = ' '.join(doc.split())
+
+    # Parse return value
+    return_string = None
+    arrow_index = doc.find('->')
+    if arrow_index != -1:
+        return_string = doc[arrow_index + 2:].strip()
+        if return_string:
+            # Get rid of "Returns" prefix
+            return_string = re.sub('^returns\s+', '', return_string.lower())
+            # Get rid of punctuation
+            return_string = re.sub('[^\w\s]', '', return_string)
+            # Handle "floating point number" and the like
+            for type_string, actual in docstr_defaults.items():
+                return_string = return_string.replace(type_string, actual)
+            # Handle "sequence of" and the like
+            return_string = re.sub('^sequence of\s+', '', return_string)
+            return_string = re.sub('\s*sequence\s*$', '', return_string)
+
+    # Parse parameters
+    param_string = doc[:arrow_index if arrow_index != -1 else len(doc)]
+    if not param_string.strip():
+        return None, return_string
+
+    # Get rid of "Parameters:" prefix
+    param_string = re.sub('^parameters:\s*', '', param_string.lower())
+    # Get rid of punctuation
+    param_string = re.sub('[^\w\s,\[\]]', '', param_string)
+    # Split parameters
+    params = [p.strip() for p in param_string.split(',')]
+    # Get rid of empty parameters
+    params = [p for p in params if p]
+    # Handle optional parameters
+    params = [re.sub(r'\[([^\]]+)\]', r'\1', p) for p in params]
+
+    return params, return_string
 
 def _normalize_create_args(func):
     """The cache doesn't care about keyword vs. normal args."""
-    pass
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
